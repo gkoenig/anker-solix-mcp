@@ -10,6 +10,18 @@ dependencies = [
     "mcp[cli]>=1.6.0",
     "anker-solix-api @ git+https://github.com/thomluther/anker-solix-api.git",
     "python-dotenv>=1.0.1",
+    # anker-solix-api's own runtime deps (aiohttp, aiofiles, paho-mqtt,
+    # cryptography) declared below, pinned to match its pyproject.toml.
+    # Its dependencies are `dynamic` there, resolved via a
+    # [tool.poetry.dependencies] table with no [build-system] requiring
+    # poetry-core - so installing it as a plain git dependency (as we do)
+    # never actually pulls these in transitively; its own installed metadata
+    # ends up with zero declared Requires-Dist. Must be listed here
+    # explicitly or every real API call fails with ModuleNotFoundError.
+    "aiohttp>=3.10.11",
+    "aiofiles>=25.1.0",
+    "paho-mqtt>=2.1.0",
+    "cryptography>=3.4.8",
 ]
 
 [dependency-groups]

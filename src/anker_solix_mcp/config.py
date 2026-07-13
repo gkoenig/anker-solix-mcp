@@ -25,6 +25,7 @@ class Settings:
     mcp_host: str
     mcp_port: int
     mcp_path: str
+    mcp_auth_token: str | None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -53,4 +54,5 @@ class Settings:
             mcp_host=os.environ.get("ANKER_MCP_HOST", "127.0.0.1"),
             mcp_port=int(os.environ.get("ANKER_MCP_PORT", "8000")),
             mcp_path=os.environ.get("ANKER_MCP_PATH", "/mcp"),
+            mcp_auth_token=os.environ.get("ANKER_MCP_AUTH_TOKEN") or None,
         )

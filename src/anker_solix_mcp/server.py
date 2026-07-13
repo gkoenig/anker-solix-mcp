@@ -15,9 +15,10 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from .client import AnkerSolixClient
-from .config import Settings
-from .tools import devices, energy, maintenance, sites, smartmeter, solarbank
+from anker_solix_mcp.client import AnkerSolixClient
+from anker_solix_mcp.config import Settings
+from anker_solix_mcp.http_auth import BearerTokenMiddleware
+from anker_solix_mcp.tools import devices, energy, maintenance, sites, smartmeter, solarbank
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("anker_solix_mcp")
@@ -65,6 +66,35 @@ def build_server(
     return mcp
 
 
+def _run_http(server: FastMCP, settings: Settings) -> None:
+    """Run the streamable-http/sse transport behind `BearerTokenMiddleware`,
+    bypassing `FastMCP.run()` so we can inject that middleware - FastMCP's
+    own `auth=`/`token_verifier=` support requires standing up a full OAuth
+    protected-resource setup (issuer URL, metadata endpoints, ...), which is
+    overkill for gating a single-account personal server behind one token.
+    """
+    import uvicorn
+
+    app = server.streamable_http_app() if settings.mcp_transport == "streamable-http" else server.sse_app()
+
+    url = f"http://{settings.mcp_host}:{settings.mcp_port}{settings.mcp_path}"
+    if settings.mcp_auth_token:
+        app.add_middleware(BearerTokenMiddleware, token=settings.mcp_auth_token)
+        logger.info("Starting %s server on %s (bearer token required)", settings.mcp_transport, url)
+    else:
+        logger.warning(
+            "Starting %s server on %s WITHOUT an auth token (ANKER_MCP_AUTH_TOKEN is "
+            "unset) - anyone who can reach this address can call every tool. Set "
+            "ANKER_MCP_AUTH_TOKEN unless this is strictly bound to loopback or an "
+            "already-trusted network.",
+            settings.mcp_transport,
+            url,
+        )
+
+    config = uvicorn.Config(app, host=settings.mcp_host, port=settings.mcp_port, log_level="info")
+    uvicorn.Server(config).run()
+
+
 def main() -> None:
     try:
         settings = Settings.from_env()
@@ -79,16 +109,11 @@ def main() -> None:
         port=settings.mcp_port,
         streamable_http_path=settings.mcp_path,
     )
-    if settings.mcp_transport != "stdio":
-        logger.info(
-            "Starting %s server on http://%s:%d%s",
-            settings.mcp_transport,
-            settings.mcp_host,
-            settings.mcp_port,
-            settings.mcp_path,
-        )
     try:
-        server.run(transport=settings.mcp_transport)
+        if settings.mcp_transport == "stdio":
+            server.run(transport="stdio")
+        else:
+            _run_http(server, settings)
     finally:
         asyncio.run(client.close())
 

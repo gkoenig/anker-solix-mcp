@@ -86,8 +86,10 @@ anker-solix-mcp/
 ├── src/
 │   └── anker_solix_mcp/
 │       ├── server.py          # builds the FastMCP app, registers tool modules, runs stdio or HTTP transport
+│       ├── _dev.py            # module-level `mcp` object for `uv run mcp dev` (MCP Inspector) only
 │       ├── config.py          # loads Settings (credentials, refresh interval, transport) from the environment
 │       ├── client.py          # AnkerSolixClient: lazy auth + refresh-throttled wrapper around AnkerSolixApi
+│       ├── http_auth.py       # BearerTokenMiddleware: static-token gate for the HTTP transports
 │       ├── util.py            # sanitize() (credential redaction), filter_devices() (heuristic type filter)
 │       └── tools/
 │           ├── sites.py       # list_sites, get_site_overview
@@ -98,6 +100,7 @@ anker-solix-mcp/
 │           └── maintenance.py # refresh_data, get_account_info
 └── tests/
     ├── test_util.py           # redaction / filtering unit tests
+    ├── test_http_auth.py      # BearerTokenMiddleware accept/reject cases
     └── test_server.py         # smoke-tests the assembled server against a fake client (no network)
 ```
 
@@ -165,6 +168,7 @@ $EDITOR .env
 | `ANKER_MCP_HOST`        | no       | Bind address for HTTP transports (default `127.0.0.1`)                     |
 | `ANKER_MCP_PORT`        | no       | Bind port for HTTP transports (default `8000`)                             |
 | `ANKER_MCP_PATH`        | no       | HTTP path the MCP endpoint is mounted at (default `/mcp`)                  |
+| `ANKER_MCP_AUTH_TOKEN`  | no       | Bearer token required on every HTTP request. Strongly recommended for any HTTP transport not bound to `127.0.0.1`; see [Running over HTTP](#running-over-http) |
 
 Credentials are only ever read from the environment/`.env` file and used to
 authenticate against Anker's own API — nothing is sent anywhere else. Tool
@@ -180,12 +184,21 @@ Before wiring this into an MCP host, it's worth checking it actually talks to
 your account. The MCP Python SDK ships an inspector UI for exactly this:
 
 ```bash
-uv run mcp dev src/anker_solix_mcp/server.py
+uv run mcp dev src/anker_solix_mcp/_dev.py
 ```
 
 This opens the **MCP Inspector** in your browser, where you can call each
-tool by hand and see the raw JSON it returns. Alternatively, just run the
-server directly (it will sit waiting for stdio input, which is expected):
+tool by hand and see the raw JSON it returns. It points at `_dev.py` rather
+than `server.py` because the `mcp dev` CLI needs a module-level `FastMCP`
+object to introspect, and `server.py` deliberately doesn't build one at
+import time (`build_server()` takes an explicit client; `main()` only
+constructs one after loading `Settings`) — that's what keeps importing
+`server.py` free of any credential/network requirement, e.g. for the test
+suite. `_dev.py` is the one place that trades that off for the Inspector's
+sake, so it still needs `ANKER_EMAIL`/`ANKER_PASSWORD` set.
+
+Alternatively, just run the server directly (it will sit waiting for stdio
+input, which is expected):
 
 ```bash
 uv run anker-solix-mcp
@@ -240,19 +253,23 @@ instead.
 ANKER_MCP_TRANSPORT=streamable-http \
 ANKER_MCP_HOST=127.0.0.1 \
 ANKER_MCP_PORT=8000 \
+ANKER_MCP_AUTH_TOKEN=$(openssl rand -hex 32) \
   uv run anker-solix-mcp
 ```
 
-Or set the same variables in your `.env` file (see `.env.example`). The
-process now behaves like a normal web server: it stays running, logs to
-stderr, and listens on `http://<host>:<port><path>` (default path `/mcp`)
-until you stop it (Ctrl+C or `SIGTERM` — the Anker API session is closed
-cleanly on shutdown).
+Or set the same variables in your `.env` file (see `.env.example`) — note
+`ANKER_MCP_AUTH_TOKEN` needs to be a fixed value there, not regenerated each
+run, since clients need to know it. The process now behaves like a normal
+web server: it stays running, logs to stderr, and listens on
+`http://<host>:<port><path>` (default path `/mcp`) until you stop it
+(Ctrl+C or `SIGTERM` — the Anker API session is closed cleanly on shutdown).
 
-Point an HTTP-capable MCP client at that URL, e.g. for Claude Code:
+Point an HTTP-capable MCP client at that URL, passing the token as a bearer
+header, e.g. for Claude Code:
 
 ```bash
-claude mcp add --transport http anker-solix http://127.0.0.1:8000/mcp
+claude mcp add --transport http anker-solix http://127.0.0.1:8000/mcp \
+  --header "Authorization: Bearer <the ANKER_MCP_AUTH_TOKEN value>"
 ```
 
 or in a client's MCP settings JSON:
@@ -262,7 +279,10 @@ or in a client's MCP settings JSON:
   "mcpServers": {
     "anker-solix": {
       "type": "http",
-      "url": "http://127.0.0.1:8000/mcp"
+      "url": "http://127.0.0.1:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer <the ANKER_MCP_AUTH_TOKEN value>"
+      }
     }
   }
 }
@@ -277,12 +297,23 @@ gave you for free now become your responsibility:
 - **Exposure / access control.** Anyone who can reach the port can call every
   tool here — read-only, but that still means your Solix site/device data
   and Anker account info (see [Available tools](#available-tools)) are
-  readable by whoever connects. `anker-solix-mcp` itself ships **no
-  authentication** for HTTP. Don't bind `ANKER_MCP_HOST` to `0.0.0.0` (or
-  otherwise expose the port to an untrusted network) without adding an auth
-  layer in front — see below.
-- **Recommended: keep it off the public internet.** The realistic setups for
-  a personal project like this, roughly in order of effort:
+  readable by whoever connects. Set `ANKER_MCP_AUTH_TOKEN` (see
+  [Configuration](#configuration)) to require a matching
+  `Authorization: Bearer <token>` header on every request —
+  `anker_solix_mcp.http_auth.BearerTokenMiddleware` rejects anything else
+  with `401`. This is a deliberately simple static-token check, not full
+  OAuth: `mcp[cli]`'s `FastMCP` does support plugging in a real
+  `TokenVerifier`/OAuth provider (`FastMCP(auth=...)`), but that requires
+  standing up OAuth protected-resource metadata (an `issuer_url`, discovery
+  endpoints, ...) — overkill for a single-account personal server. If you
+  need that flow (e.g. multiple distinct users/identities, token expiry,
+  scopes), swap in a real `TokenVerifier` instead of `ANKER_MCP_AUTH_TOKEN`.
+  Without the token set, the server logs a startup warning and accepts
+  unauthenticated requests — only acceptable on loopback or an
+  already-trusted network (see below).
+- **Recommended: keep it off the public internet.** A bearer token guards
+  the endpoint, but it's still sent as plain HTTP unless something adds TLS
+  (see below) — layer on network-level protection too:
   1. **Loopback only** (`ANKER_MCP_HOST=127.0.0.1`, the default) if the MCP
      host runs on the same machine — gets you nothing over stdio, so prefer
      stdio in that case.
@@ -291,11 +322,9 @@ gave you for free now become your responsibility:
      home LAN, never a port forwarded to the public internet.
   3. **Reverse proxy in front** (Caddy, nginx, Traefik) if you do need
      access from outside your network: terminate TLS there (streamable-http
-     has no TLS of its own) and add an auth layer — HTTP basic auth or a
-     bearer-token check in front is enough for a single-user tool, since
-     `mcp[cli]`'s `FastMCP` also supports plugging in a real
-     `TokenVerifier`/OAuth provider (`FastMCP(auth=...)`) if you want the
-     MCP-native auth flow instead.
+     has no TLS of its own) — keep `ANKER_MCP_AUTH_TOKEN` set either way, so
+     the token and TLS cover different risks (who's allowed vs. is the
+     traffic readable in transit).
 - **Single process, not a fleet.** `AnkerSolixClient` throttles refreshes
   and authenticates lazily using in-process state (an `asyncio.Lock` and a
   last-refresh timestamp — see `client.py`). That only works correctly
