@@ -28,7 +28,7 @@ class Settings:
     mcp_auth_token: str | None
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         email = os.environ.get("ANKER_EMAIL")
         password = os.environ.get("ANKER_PASSWORD")
         if not email or not password:
@@ -40,10 +40,7 @@ class Settings:
             )
         mcp_transport = os.environ.get("ANKER_MCP_TRANSPORT", "stdio")
         if mcp_transport not in _VALID_TRANSPORTS:
-            raise RuntimeError(
-                f"ANKER_MCP_TRANSPORT={mcp_transport!r} is not one of "
-                f"{sorted(_VALID_TRANSPORTS)}."
-            )
+            raise RuntimeError(f"ANKER_MCP_TRANSPORT={mcp_transport!r} is not one of {sorted(_VALID_TRANSPORTS)}.")
         return cls(
             email=email,
             password=password,

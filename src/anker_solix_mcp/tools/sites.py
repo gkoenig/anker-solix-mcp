@@ -4,11 +4,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import AnkerSolixClient
+from ..client import AnkerSolixClientProtocol
 from ..util import sanitize
 
 
-def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
+def register(mcp: FastMCP, client: AnkerSolixClientProtocol) -> None:
     @mcp.tool()
     async def list_sites() -> dict[str, Any]:
         """List every Anker power system ("site") linked to this account, keyed
@@ -33,7 +33,5 @@ def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
         sites = await client.sites()
         site = sites.get(site_id)
         if site is None:
-            return {
-                "error": f"No site found with id {site_id!r}. Call list_sites to see available sites."
-            }
+            return {"error": f"No site found with id {site_id!r}. Call list_sites to see available sites."}
         return sanitize(site)

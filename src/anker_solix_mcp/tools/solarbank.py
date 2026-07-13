@@ -4,7 +4,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import AnkerSolixClient
+from ..client import AnkerSolixClientProtocol
 from ..util import filter_devices, sanitize
 
 # Heuristic keywords used to spot Solarbank / expansion-battery entries among
@@ -13,7 +13,7 @@ from ..util import filter_devices, sanitize
 _SOLARBANK_KEYWORDS = ("solarbank", "solar bank", "a17")
 
 
-def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
+def register(mcp: FastMCP, client: AnkerSolixClientProtocol) -> None:
     @mcp.tool()
     async def list_solarbanks() -> dict[str, Any]:
         """List devices that look like Solarbanks or their expansion battery
@@ -41,7 +41,8 @@ def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
         device = devices.get(device_sn)
         if device is None:
             return {
-                "error": f"No device found with serial number {device_sn!r}. Call list_solarbanks to see available Solarbanks."
+                "error": f"No device found with serial number {device_sn!r}. "
+                "Call list_solarbanks to see available Solarbanks."
             }
         return sanitize(device)
 
@@ -59,7 +60,8 @@ def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
         device = devices.get(device_sn)
         if device is None:
             return {
-                "error": f"No device found with serial number {device_sn!r}. Call list_solarbanks to see available Solarbanks."
+                "error": f"No device found with serial number {device_sn!r}. "
+                "Call list_solarbanks to see available Solarbanks."
             }
         schedule = device.get("schedule")
         if schedule is None:

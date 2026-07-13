@@ -1,5 +1,12 @@
 # Anker Solix MCP Server
 
+[![CI](https://github.com/gkoenig/anker-solix-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gkoenig/anker-solix-mcp/actions/workflows/ci.yml)
+[![Security](https://github.com/gkoenig/anker-solix-mcp/actions/workflows/security.yml/badge.svg)](https://github.com/gkoenig/anker-solix-mcp/actions/workflows/security.yml)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server that
 exposes data from an Anker Solix solar setup — Solarbank, expansion battery
 packs, and Smartmeter — as tools an LLM agent (Claude Desktop, Claude Code, or
@@ -34,6 +41,7 @@ enough to work with any Solix devices linked to your Anker account.
 - [Available tools](#available-tools)
 - [Design notes](#design-notes)
 - [Development](#development)
+- [Continuous integration & security](#continuous-integration--security)
 - [Extending](#extending)
 
 ---
@@ -83,6 +91,11 @@ anker-solix-mcp/
 ├── uv.lock                    # locked, reproducible dependency versions (uv-managed, committed)
 ├── .python-version             # pins the interpreter uv uses/installs for this project (3.12)
 ├── .env.example               # template for Anker account credentials
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml              # lint (ruff) + type check (pyright) + test (pytest), every push
+│   │   └── security.yml        # pip-audit (dependency CVEs) + CodeQL, every push + weekly
+│   └── dependabot.yml         # weekly version-update PRs (Python deps + GitHub Actions)
 ├── src/
 │   └── anker_solix_mcp/
 │       ├── server.py          # builds the FastMCP app, registers tool modules, runs stdio or HTTP transport
@@ -405,19 +418,50 @@ makes a network call or requires credentials to be present.
 ## Development
 
 ```bash
-uv sync            # dev dependency group (pytest, pytest-asyncio) is included by default
+uv sync            # dev dependency group (pytest, pytest-asyncio, ruff, pyright, pip-audit) is included by default
 uv run pytest
+uv run ruff check .          # lint
+uv run ruff format .         # format (add --check to only verify, e.g. in CI)
+uv run pyright               # type check
 ```
 
 `tests/test_server.py` builds the MCP server against a small fake client (see
 `FakeAnkerSolixClient`), so the test suite runs with no Anker credentials and
-no network access.
+no network access. `tools/*.py` and `build_server()` take the client as
+`AnkerSolixClientProtocol` (see `client.py`) rather than the concrete
+`AnkerSolixClient` specifically so that duck-typed stand-in type-checks too.
 
 To add or upgrade a dependency, prefer `uv add <package>` (or `uv add --group
 dev <package>` for a dev-only tool) over hand-editing `pyproject.toml` — it
 resolves and updates `uv.lock` for you in the same step. Run `uv lock
 --upgrade` occasionally to pick up new compatible versions, including a newer
 commit of `anker-solix-api` if the upstream library has moved on.
+
+## Continuous integration & security
+
+Every push, on every branch, runs three GitHub Actions jobs
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+| Job        | Command                                          |
+| ---------- | ------------------------------------------------- |
+| Lint       | `uv run ruff check .` + `uv run ruff format --check .` |
+| Type check | `uv run pyright`                                   |
+| Test       | `uv run pytest`                                    |
+
+Security scanning runs on every push plus a weekly schedule
+([`.github/workflows/security.yml`](.github/workflows/security.yml)):
+
+- **`pip-audit`** — checks every resolved dependency version (from the locked
+  environment) against known CVE databases.
+- **CodeQL** — GitHub's static analysis, scanning this project's own Python
+  source for security-relevant bug patterns (separate from dependency CVEs).
+
+[`.github/dependabot.yml`](.github/dependabot.yml) additionally opens PRs for
+version updates on a weekly schedule, for both Python dependencies (`uv`
+ecosystem) and the GitHub Actions used in the workflows themselves. Note that
+`anker-solix-api` is a git dependency with no fixed tag, so Dependabot can
+version-bump every other dependency here but not that one specifically —
+re-run `uv lock --upgrade` periodically to pick up newer commits of it.
 
 ## Extending
 

@@ -45,10 +45,7 @@ def sanitize(value: Any) -> Any:
     reaching an LLM's context window.
     """
     if isinstance(value, dict):
-        return {
-            key: (_REDACTED if _is_sensitive_key(str(key)) else sanitize(val))
-            for key, val in value.items()
-        }
+        return {key: (_REDACTED if _is_sensitive_key(str(key)) else sanitize(val)) for key, val in value.items()}
     if isinstance(value, list):
         return [sanitize(item) for item in value]
     return value
@@ -75,7 +72,5 @@ def filter_devices(devices: dict[str, Any], keywords: tuple[str, ...]) -> dict[s
                 return True
         return False
 
-    filtered = {
-        sn: dev for sn, dev in devices.items() if isinstance(dev, dict) and matches(dev)
-    }
+    filtered = {sn: dev for sn, dev in devices.items() if isinstance(dev, dict) and matches(dev)}
     return filtered or dict(devices)

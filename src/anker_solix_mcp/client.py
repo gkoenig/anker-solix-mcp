@@ -13,11 +13,26 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import Any, Protocol
 
 from .config import Settings
 
 logger = logging.getLogger("anker_solix_mcp")
+
+
+class AnkerSolixClientProtocol(Protocol):
+    """The subset of `AnkerSolixClient` the `tools/*.py` modules and
+    `build_server()` actually depend on - used as their parameter type
+    instead of the concrete class so `tests/test_server.py`'s duck-typed
+    `FakeAnkerSolixClient` type-checks without inheriting from it (it
+    deliberately never touches the network or needs `Settings`).
+    """
+
+    async def refresh(self, force: bool = False) -> None: ...
+    async def sites(self) -> dict[str, Any]: ...
+    async def devices(self) -> dict[str, Any]: ...
+    async def account(self) -> dict[str, Any]: ...
+    async def energy_snapshot(self) -> dict[str, Any]: ...
 
 
 class AnkerSolixClient:

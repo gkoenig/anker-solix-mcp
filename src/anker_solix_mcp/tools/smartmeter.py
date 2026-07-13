@@ -4,13 +4,13 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import AnkerSolixClient
+from ..client import AnkerSolixClientProtocol
 from ..util import filter_devices, sanitize
 
 _SMARTMETER_KEYWORDS = ("smartmeter", "smart meter", "meter")
 
 
-def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
+def register(mcp: FastMCP, client: AnkerSolixClientProtocol) -> None:
     @mcp.tool()
     async def list_smartmeters() -> dict[str, Any]:
         """List devices that look like Anker Smartmeters, identified
@@ -35,6 +35,7 @@ def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
         device = devices.get(device_sn)
         if device is None:
             return {
-                "error": f"No device found with serial number {device_sn!r}. Call list_smartmeters to see available Smartmeters."
+                "error": f"No device found with serial number {device_sn!r}. "
+                "Call list_smartmeters to see available Smartmeters."
             }
         return sanitize(device)

@@ -4,11 +4,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import AnkerSolixClient
+from ..client import AnkerSolixClientProtocol
 from ..util import sanitize
 
 
-def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
+def register(mcp: FastMCP, client: AnkerSolixClientProtocol) -> None:
     @mcp.tool()
     async def refresh_data() -> dict[str, Any]:
         """Force an immediate refresh of all cached Anker Solix data (sites,

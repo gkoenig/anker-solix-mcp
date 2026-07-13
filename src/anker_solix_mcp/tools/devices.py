@@ -4,11 +4,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import AnkerSolixClient
+from ..client import AnkerSolixClientProtocol
 from ..util import sanitize
 
 
-def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
+def register(mcp: FastMCP, client: AnkerSolixClientProtocol) -> None:
     @mcp.tool()
     async def list_devices() -> dict[str, Any]:
         """List every device (Solarbank, expansion battery pack, Smartmeter,
@@ -35,6 +35,7 @@ def register(mcp: FastMCP, client: AnkerSolixClient) -> None:
         device = devices.get(device_sn)
         if device is None:
             return {
-                "error": f"No device found with serial number {device_sn!r}. Call list_devices to see available devices."
+                "error": f"No device found with serial number {device_sn!r}. "
+                "Call list_devices to see available devices."
             }
         return sanitize(device)

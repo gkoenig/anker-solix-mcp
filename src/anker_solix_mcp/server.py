@@ -15,7 +15,7 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from anker_solix_mcp.client import AnkerSolixClient
+from anker_solix_mcp.client import AnkerSolixClient, AnkerSolixClientProtocol
 from anker_solix_mcp.config import Settings
 from anker_solix_mcp.http_auth import BearerTokenMiddleware
 from anker_solix_mcp.tools import devices, energy, maintenance, sites, smartmeter, solarbank
@@ -35,7 +35,7 @@ _INSTRUCTIONS = (
 
 
 def build_server(
-    client: AnkerSolixClient,
+    client: AnkerSolixClientProtocol,
     *,
     host: str = "127.0.0.1",
     port: int = 8000,
