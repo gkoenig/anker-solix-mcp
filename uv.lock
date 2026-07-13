@@ -173,7 +173,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.10.11" },
     { name = "anker-solix-api", git = "https://github.com/thomluther/anker-solix-api.git" },
     { name = "cryptography", specifier = ">=3.4.8" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.6.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.28.1" },
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
 ]
