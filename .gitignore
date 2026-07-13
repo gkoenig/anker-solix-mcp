@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local secrets / cached auth data
+.env
+*.token
+anker_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+CLAUDE.md
