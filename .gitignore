@@ -19,3 +19,4 @@ anker_cache/
 .idea/
 .DS_Store
 CLAUDE.md
+.claude/
