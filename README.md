@@ -219,10 +219,23 @@ uv run anker-solix-mcp
 
 ## Connecting to an MCP client
 
-### Claude Code
+Clone the repo to a local folder once, then point each MCP client at that
+checkout:
 
 ```bash
-claude mcp add anker-solix -- uv --directory /absolute/path/to/anker-solix-mcp run anker-solix-mcp
+mkdir -p ~/src
+cd ~/src
+git clone https://github.com/gkoenig/anker-solix-mcp.git
+cd anker-solix-mcp
+uv sync
+```
+
+### Claude Code
+
+Use that local path in Claude Code's MCP settings:
+
+```bash
+claude mcp add anker-solix -- uv --directory ~/src/anker-solix-mcp run anker-solix-mcp
 ```
 
 Or add it by hand to your Claude Code MCP settings:
@@ -232,7 +245,7 @@ Or add it by hand to your Claude Code MCP settings:
   "mcpServers": {
     "anker-solix": {
       "command": "uv",
-      "args": ["--directory", "/absolute/path/to/anker-solix-mcp", "run", "anker-solix-mcp"]
+      "args": ["--directory", "~/src/anker-solix-mcp", "run", "anker-solix-mcp"]
     }
   }
 }
@@ -240,8 +253,28 @@ Or add it by hand to your Claude Code MCP settings:
 
 ### Claude Desktop
 
-Add the same block to `claude_desktop_config.json` (Settings → Developer →
-Edit Config), then restart Claude Desktop.
+Use the same local checkout in `claude_desktop_config.json` (Settings →
+Developer → Edit Config), then restart Claude Desktop.
+
+### Cline
+
+Cline stores MCP servers in `cline_mcp_settings.json`, using the same
+`mcpServers` shape as the other clients here. Add the server entry there and
+replace the path with your local checkout:
+
+```json
+{
+  "mcpServers": {
+    "anker-solix": {
+      "command": "uv",
+      "args": ["--directory", "~/src/anker-solix-mcp", "run", "anker-solix-mcp"]
+    }
+  }
+}
+```
+
+Save the file, reload Cline, and ask it to call tools like "list my sites"
+or "show solarbank status".
 
 ### Any other MCP host
 
@@ -300,6 +333,11 @@ or in a client's MCP settings JSON:
   }
 }
 ```
+
+For Cline, this same file works: keep using `mcpServers`, but switch the
+entry to the HTTP shape above when you run the server with
+`ANKER_MCP_TRANSPORT=streamable-http`. For local stdio use, keep the
+Cline-specific entry from [Connecting to an MCP client](#connecting-to-an-mcp-client).
 
 ### What changes vs. stdio, and what to consider
 

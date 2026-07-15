@@ -5,7 +5,7 @@ description = "MCP server exposing Anker Solix Solarbank and Smartmeter data as 
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "Anker Solix MCP contributors" }]
+authors = [{ name = "Gerd Koenig" }]
 dependencies = [
     "mcp[cli]>=1.28.1",
     "anker-solix-api @ git+https://github.com/thomluther/anker-solix-api.git",
