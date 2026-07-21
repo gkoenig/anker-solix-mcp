@@ -109,7 +109,7 @@ anker-solix-mcp/
 │           ├── devices.py     # list_devices, get_device
 │           ├── solarbank.py   # list_solarbanks, get_solarbank_status, get_solarbank_schedule
 │           ├── smartmeter.py  # list_smartmeters, get_smartmeter_status
-│           ├── energy.py      # get_energy_statistics
+│           ├── energy.py      # get_energy_statistics, get_energy_analysis
 │           └── maintenance.py # refresh_data, get_account_info
 └── tests/
     ├── test_util.py           # redaction / filtering unit tests
@@ -414,6 +414,7 @@ gave you for free now become your responsibility:
 | `list_smartmeters`        | Devices that look like Anker Smartmeters.                                                          |
 | `get_smartmeter_status`   | Current grid import/export power and other reported fields.                                        |
 | `get_energy_statistics`   | Fresh (non-cached) energy totals: production, charge/discharge, grid import/export, home usage.    |
+| `get_energy_analysis`     | Time-series energy breakdown for a site (day/week/month/year); `range_type="day"` returns intraday (~20-min) points for sub-daily queries like night-time usage. |
 | `refresh_data`            | Force an immediate refresh of all cached data, bypassing the throttle.                             |
 | `get_account_info`        | Basic Anker account info (nickname, etc.), credentials redacted.                                   |
 
@@ -445,7 +446,7 @@ cache in particular could plausibly carry session-related fields.
 **Refresh throttling.** `AnkerSolixClient.refresh()` is throttled to
 `ANKER_REFRESH_SECONDS` (default 60s) so a burst of tool calls within one
 conversation turn costs a single round trip to Anker's API, not one per tool.
-`get_energy_statistics` and `refresh_data` intentionally bypass the throttle,
+`get_energy_statistics`, `get_energy_analysis` and `refresh_data` intentionally bypass the throttle,
 since "give me the latest number" is the most common reason to call them.
 
 **Lazy authentication.** The Anker API client and its HTTP session are only

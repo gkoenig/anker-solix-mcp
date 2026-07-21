@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import Any, Protocol
 
 from .config import Settings
@@ -33,6 +34,15 @@ class AnkerSolixClientProtocol(Protocol):
     async def devices(self) -> dict[str, Any]: ...
     async def account(self) -> dict[str, Any]: ...
     async def energy_snapshot(self) -> dict[str, Any]: ...
+    async def energy_analysis(
+        self,
+        site_id: str,
+        dev_type: str,
+        range_type: str = "day",
+        start_day: str | None = None,
+        end_day: str | None = None,
+        device_sn: str = "",
+    ) -> dict[str, Any]: ...
 
 
 class AnkerSolixClient:
@@ -123,5 +133,38 @@ class AnkerSolixClient:
         """
         api = await self._ensure_api()
         result = await api.update_device_energy()
+        self._last_refresh = time.monotonic()
+        return result
+
+    async def energy_analysis(
+        self,
+        site_id: str,
+        dev_type: str,
+        range_type: str = "day",
+        start_day: str | None = None,
+        end_day: str | None = None,
+        device_sn: str = "",
+    ) -> dict[str, Any]:
+        """Force a fresh energy-analysis fetch for one site/device over a
+        given time frame and return the raw response from the Anker cloud
+        API.
+
+        `range_type="day"` with `start_day == end_day` (or `end_day` omitted)
+        is the way to get sub-daily granularity: Anker returns the day's
+        `power` series at roughly 20-minute resolution (`time` as `"HH:MM"`)
+        instead of one point per day - e.g. to sum up consumption between
+        22:00 and 06:00.
+        """
+        api = await self._ensure_api()
+        start = datetime.strptime(start_day, "%Y-%m-%d") if start_day else datetime.today()
+        end = datetime.strptime(end_day, "%Y-%m-%d") if end_day else None
+        result = await api.energy_analysis(
+            siteId=site_id,
+            deviceSn=device_sn,
+            rangeType=range_type,
+            startDay=start,
+            endDay=end,
+            devType=dev_type,
+        )
         self._last_refresh = time.monotonic()
         return result

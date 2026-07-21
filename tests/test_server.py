@@ -21,6 +21,7 @@ EXPECTED_TOOL_NAMES = {
     "list_smartmeters",
     "get_smartmeter_status",
     "get_energy_statistics",
+    "get_energy_analysis",
     "refresh_data",
     "get_account_info",
 }
@@ -51,6 +52,23 @@ class FakeAnkerSolixClient:
     async def energy_snapshot(self) -> dict[str, Any]:
         return {"solar_production_today": 12.3}
 
+    async def energy_analysis(
+        self,
+        site_id: str,
+        dev_type: str,
+        range_type: str = "day",
+        start_day: str | None = None,
+        end_day: str | None = None,
+        device_sn: str = "",
+    ) -> dict[str, Any]:
+        return {
+            "power": [
+                {"time": "22:00", "value": "0.12"},
+                {"time": "23:00", "value": "0.10"},
+            ],
+            "power_unit": "kwh",
+        }
+
 
 @pytest.fixture
 def server():
@@ -74,3 +92,12 @@ async def test_get_account_info_redacts_token(server):
     assert "should-be-redacted" not in rendered
     assert "***redacted***" in rendered
     assert structured["auth_token"] == "***redacted***"
+
+
+@pytest.mark.asyncio
+async def test_get_energy_analysis_returns_intraday_series(server):
+    content_blocks, structured = await server.call_tool(
+        "get_energy_analysis",
+        {"site_id": "site-1", "dev_type": "home_usage", "start_day": "2026-07-20"},
+    )
+    assert structured["power"][0]["time"] == "22:00"
