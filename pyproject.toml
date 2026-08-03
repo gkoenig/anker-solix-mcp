@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Gerd Koenig" }]
 dependencies = [
-    "mcp[cli]>=1.28.1",
+    "mcp[cli]>=2.0.0",
     "anker-solix-api @ git+https://github.com/thomluther/anker-solix-api.git",
     "python-dotenv>=1.0.1",
     # anker-solix-api's own runtime deps (aiohttp, aiofiles, paho-mqtt,
